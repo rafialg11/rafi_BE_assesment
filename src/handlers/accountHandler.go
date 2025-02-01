@@ -11,9 +11,9 @@ type AccountHandler struct {
 func NewAccountHandler(app fiber.Router) {
 	accountHandler := AccountHandler{}
 	app.Post("/daftar", accountHandler.Register)
-	app.Post("/tabung", accountHandler.Register)
-	app.Post("/tarik", accountHandler.Register)
-	app.Get("/saldo/:id", accountHandler.Register)
+	app.Post("/tabung", accountHandler.Save)
+	app.Post("/tarik", accountHandler.Withdraw)
+	app.Get("/saldo/:id", accountHandler.GetBalance)
 }
 
 func (a *AccountHandler) Register(c *fiber.Ctx) error {
