@@ -1,6 +1,9 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/rafialg11/rafi_BE_assesment/src/config"
@@ -10,16 +13,26 @@ import (
 )
 
 func main() {
-	app := fiber.New()
+	host := flag.String("host", "localhost", "Host for the server")
+	port := flag.String("port", "3000", "Port for the server")
+
+	flag.Parse()
+
+	fmt.Printf("Starting server on %s:%s\n", *host, *port)
+
 	config.InitDB()
+	config.InitLogger()
+
+	app := fiber.New()
 
 	v1 := app.Group("/api/v1")
 
-	//Initialize Account Handler
 	accountRepo := repository.NewAccountRepository(config.Database)
 	accountService := services.NewAccountService(accountRepo)
 	handler.NewAccountHandler(v1, accountService)
 
-	//Start the server
-	app.Listen(":3000")
+	err := app.Listen(fmt.Sprintf("%s:%s", *host, *port))
+	if err != nil {
+		fmt.Printf("Error starting server: %v\n", err)
+	}
 }
