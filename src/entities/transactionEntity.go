@@ -10,3 +10,8 @@ type Transaction struct {
 	CreatedAt       *time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
 	Customer        Customer   `json:"customer" gorm:"onDelete:CASCADE onUpdate:CASCADE"`
 }
+
+type TransactionRequest struct {
+	Amount        int    `json:"amount"`
+	AccountNumber string `json:"account_number"`
+}

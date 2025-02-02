@@ -7,13 +7,12 @@ import (
 	"github.com/rafialg11/rafi_BE_assesment/src/entities"
 	"github.com/rafialg11/rafi_BE_assesment/src/helpers"
 	"github.com/rafialg11/rafi_BE_assesment/src/repository"
-	"gorm.io/gorm"
 )
 
 type AccountService interface {
 	Register(account *entities.Customer) (*entities.Customer, error)
-	Save(account *entities.Account) (*entities.Account, error)
-	Withdraw(account *entities.Account) (*entities.Account, error)
+	Save(account *entities.TransactionRequest) (*entities.Account, error)
+	Withdraw(account *entities.TransactionRequest) (*entities.Account, error)
 	GetBalance(account *entities.Account) (*entities.Account, error)
 }
 
@@ -32,12 +31,12 @@ func (s *accountService) Register(customer *entities.Customer) (*entities.Custom
 	}
 
 	// Check if NIK and Phone already exists
-	_, err := s.repository.CheckCustomerNIKandPhone(customer.NIK, customer.Phone)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) { // Jika error BUKAN karena data tidak ditemukan, return error
-		return nil, errors.New("failed to check NIK and phone")
+	isCustomerExists, err := s.repository.CheckCustomerNIKandPhone(customer.NIK, customer.Phone)
+	if err != nil {
+		return nil, errors.New("failed to check customer")
 	}
-	if err == nil { // Jika tidak ada error (berarti data ditemukan), maka return error karena duplikasi
-		return nil, errors.New("nik and phone already exists")
+	if isCustomerExists {
+		return nil, errors.New("customer already exists")
 	}
 
 	// Save Customer
@@ -51,11 +50,11 @@ func (s *accountService) Register(customer *entities.Customer) (*entities.Custom
 	accountNumber := helpers.GetFormattedAccountNumber(customer.Id)
 
 	// Check Customer Account Number
-	_, err = s.repository.CheckAccountNumber(accountNumber)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	isAccountNumberExists, err := s.repository.CheckAccountNumber(accountNumber)
+	if err != nil {
 		return nil, errors.New("failed to check account number")
 	}
-	if err == nil {
+	if isAccountNumberExists {
 		return nil, errors.New("account number already exists")
 	}
 
@@ -82,14 +81,108 @@ func (s *accountService) Register(customer *entities.Customer) (*entities.Custom
 	return customer, err
 }
 
-func (s *accountService) Save(account *entities.Account) (*entities.Account, error) {
-	return account, nil
+func (s *accountService) Save(transaction *entities.TransactionRequest) (*entities.Account, error) {
+	// Input Validation
+	if transaction.AccountNumber == "" {
+		return nil, errors.New("account number cannot be empty")
+	}
+
+	// Amount Validation
+	if transaction.Amount <= 0 {
+		return nil, errors.New("amount must be greater than 0")
+	}
+
+	// Check Account Balance
+	checkAccount, err := s.repository.CheckAccountBalance(transaction.AccountNumber)
+	if checkAccount == nil {
+		return nil, errors.New("account not found")
+	}
+	if err != nil {
+		return nil, errors.New("failed to check account balance")
+	}
+
+	// Save Transaction
+	trx := &entities.Transaction{
+		Amount:          transaction.Amount,
+		TransactionType: "Save",
+		CustomerId:      checkAccount.CustomerId,
+	}
+
+	// Save Transaction
+	_, err = s.repository.CreateTransaction(trx)
+	if err != nil {
+		return nil, errors.New("failed to save transaction")
+	}
+
+	// Update Account Balance
+	checkAccount.Amount += transaction.Amount
+	account, err := s.repository.UpdateBalance(checkAccount)
+	if err != nil {
+		return nil, errors.New("failed to update account balance")
+	}
+
+	return account, err
 }
 
-func (s *accountService) Withdraw(account *entities.Account) (*entities.Account, error) {
-	return account, nil
+func (s *accountService) Withdraw(transaction *entities.TransactionRequest) (*entities.Account, error) {
+	if transaction.AccountNumber == "" {
+		return nil, errors.New("account number cannot be empty")
+	}
+
+	// Amount Validation
+	if transaction.Amount <= 0 {
+		return nil, errors.New("amount must be greater than 0")
+	}
+
+	// Check Account Balance
+	checkAccount, err := s.repository.CheckAccountBalance(transaction.AccountNumber)
+	if checkAccount == nil {
+		return nil, errors.New("account not found")
+	}
+	if err != nil {
+		return nil, errors.New("failed to check account balance")
+	}
+
+	if checkAccount.Amount < transaction.Amount {
+		return nil, errors.New("insufficient balance")
+	}
+
+	// Save Transaction
+	trx := &entities.Transaction{
+		Amount:          transaction.Amount,
+		TransactionType: "Withdraw",
+		CustomerId:      checkAccount.CustomerId,
+	}
+
+	// Save Transaction
+	_, err = s.repository.CreateTransaction(trx)
+	if err != nil {
+		return nil, errors.New("failed to save transaction")
+	}
+
+	// Update Account Balance
+	checkAccount.Amount -= transaction.Amount
+	account, err := s.repository.UpdateBalance(checkAccount)
+	if err != nil {
+		return nil, errors.New("failed to update account balance")
+	}
+
+	return account, err
 }
 
 func (s *accountService) GetBalance(account *entities.Account) (*entities.Account, error) {
-	return account, nil
+	if account.AccountNumber == "" {
+		return nil, errors.New("account number cannot be empty")
+	}
+
+	// Check Account Balance
+	checkAccount, err := s.repository.CheckAccountBalance(account.AccountNumber)
+	if checkAccount == nil {
+		return nil, errors.New("account not found")
+	}
+	if err != nil {
+		return nil, errors.New("failed to check account balance")
+	}
+
+	return checkAccount, nil
 }

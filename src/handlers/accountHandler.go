@@ -16,7 +16,7 @@ func NewAccountHandler(app fiber.Router, accountService services.AccountService)
 	app.Post("/daftar", accountHandler.Register)
 	app.Post("/tabung", accountHandler.Save)
 	app.Post("/tarik", accountHandler.Withdraw)
-	app.Get("/saldo/:id", accountHandler.GetBalance)
+	app.Get("/saldo/:account_number", accountHandler.GetBalance)
 }
 
 func (h *AccountHandler) Register(c *fiber.Ctx) error {
@@ -26,7 +26,7 @@ func (h *AccountHandler) Register(c *fiber.Ctx) error {
 			Status:  fiber.StatusBadRequest,
 			Message: "FAILED",
 			Data:    nil,
-			Error:   "All fields (name, phone, NIK) are required",
+			Error:   "Invalid request body",
 		})
 	}
 
@@ -51,26 +51,98 @@ func (h *AccountHandler) Register(c *fiber.Ctx) error {
 }
 
 func (a *AccountHandler) Save(c *fiber.Ctx) error {
+	transaction := new(entities.TransactionRequest)
+	if err := c.BodyParser(transaction); err != nil {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   "Invalid request body",
+		})
+	}
+
+	account, err := a.accountService.Save(transaction)
+	if err != nil {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   err.Error(),
+		})
+	}
+
 	return c.JSON(utils.ApiResponse{
 		Status:  fiber.StatusOK,
 		Message: "SUCCESS",
-		Data:    "this is Save",
-		Error:   nil,
+		Data: map[string]interface{}{
+			"account_number": account.AccountNumber,
+			"amount":         account.Amount,
+		},
+		Error: nil,
 	})
 }
+
 func (a *AccountHandler) Withdraw(c *fiber.Ctx) error {
+	transaction := new(entities.TransactionRequest)
+	if err := c.BodyParser(transaction); err != nil {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   "Invalid request body",
+		})
+	}
+
+	account, err := a.accountService.Withdraw(transaction)
+	if err != nil {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   err.Error(),
+		})
+	}
+
 	return c.JSON(utils.ApiResponse{
 		Status:  fiber.StatusOK,
 		Message: "SUCCESS",
-		Data:    "this is Withdraw",
-		Error:   nil,
+		Data: map[string]interface{}{
+			"account_number": account.AccountNumber,
+			"amount":         account.Amount,
+		},
+		Error: nil,
 	})
 }
 func (a *AccountHandler) GetBalance(c *fiber.Ctx) error {
+	accountNumber := c.Params("account_number")
+	if accountNumber == "" {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   "account number cannot be empty",
+		})
+	}
+
+	account, err := a.accountService.GetBalance(&entities.Account{
+		AccountNumber: accountNumber,
+	})
+	if err != nil {
+		return c.JSON(utils.ApiResponse{
+			Status:  fiber.StatusBadRequest,
+			Message: "FAILED",
+			Data:    nil,
+			Error:   err.Error(),
+		})
+	}
+
 	return c.JSON(utils.ApiResponse{
 		Status:  fiber.StatusOK,
 		Message: "SUCCESS",
-		Data:    "this is GetBalance",
-		Error:   nil,
+		Data: map[string]interface{}{
+			"account_number": account.AccountNumber,
+			"amount":         account.Amount,
+		},
+		Error: nil,
 	})
 }
