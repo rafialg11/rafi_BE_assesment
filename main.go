@@ -5,6 +5,8 @@ import (
 
 	"github.com/rafialg11/rafi_BE_assesment/src/config"
 	handler "github.com/rafialg11/rafi_BE_assesment/src/handlers"
+	"github.com/rafialg11/rafi_BE_assesment/src/repository"
+	"github.com/rafialg11/rafi_BE_assesment/src/services"
 )
 
 func main() {
@@ -14,7 +16,9 @@ func main() {
 	v1 := app.Group("/api/v1")
 
 	//Initialize Account Handler
-	handler.NewAccountHandler(v1)
+	accountRepo := repository.NewAccountRepository(config.Database)
+	accountService := services.NewAccountService(accountRepo)
+	handler.NewAccountHandler(v1, accountService)
 
 	//Start the server
 	app.Listen(":3000")

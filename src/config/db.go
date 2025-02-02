@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"log"
 
+	"os"
+
+	"github.com/joho/godotenv"
 	"github.com/rafialg11/rafi_BE_assesment/src/entities"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"os"
-	"github.com/joho/godotenv"
 )
 
 var (
